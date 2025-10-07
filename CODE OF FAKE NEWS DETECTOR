@@ -1,43 +1,58 @@
-# model.py
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
-import pickle
+from sklearn.metrics import accuracy_score, confusion_matrix
 
-# Load data
-true = pd.read_csv("data/True.csv")
-fake = pd.read_csv("data/Fake.csv")
+# Load the dataset
+df = pd.read_csv('news.csv')
 
-true["label"] = 1
-fake["label"] = 0
+# Drop any rows with missing values
+df = df.dropna()
 
-data = pd.concat([true, fake], axis=0)
-data = data.sample(frac=1).reset_index(drop=True)
+# Map the labels to numerical values (0 for FAKE, 1 for REAL)
+df['label'] = df['label'].apply(lambda x: 0 if x == 'FAKE' else 1)
 
-# Split data
-X = data["text"]
-y = data["label"]
+# Combine the title and text for a more robust analysis
+df['combined_text'] = df['title'] + " " + df['text']
 
-# TF-IDF Vectorizer
-vectorizer = TfidfVectorizer(stop_words='english', max_df=0.7)
-X_vec = vectorizer.fit_transform(X)
+# Split the data into training and testing sets
+X = df['combined_text']
+y = df['label']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X_vec, y, test_size=0.2, random_state=42)
+# Create a TF-IDF Vectorizer
+tfidf_vectorizer = TfidfVectorizer(stop_words='english', max_df=0.7)
 
-# Model training
-model = LogisticRegression()
-model.fit(X_train, y_train)
+# Fit and transform the training data
+tfidf_train = tfidf_vectorizer.fit_transform(X_train)
 
-# Evaluate
-y_pred = model.predict(X_test)
-print(f"Accuracy: {accuracy_score(y_test, y_pred):.2f}")
+# Transform the testing data
+tfidf_test = tfidf_vectorizer.transform(X_test)
 
-# Save model and vectorizer
-with open("model.pkl", "wb") as f:
-    pickle.dump(model, f)
+# Initialize a Logistic Regression classifier
+classifier = LogisticRegression()
 
-with open("vectorizer.pkl", "wb") as f:
-    pickle.dump(vectorizer, f)
+# Train the classifier
+classifier.fit(tfidf_train, y_train)
+
+# Make predictions on the test set
+y_pred = classifier.predict(tfidf_test)
+
+# Evaluate the model
+accuracy = accuracy_score(y_test, y_pred)
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+print(f"Model Accuracy: {accuracy*100:.2f}%")
+print("Confusion Matrix:\n", conf_matrix)
+
+# Example of predicting a new article
+new_article = "Fake news headline: Scientists discover that all humans are now invisible."
+new_article_tfidf = tfidf_vectorizer.transform([new_article])
+prediction = classifier.predict(new_article_tfidf)
+
+if prediction[0] == 0:
+    print("The article is classified as FAKE.")
+else:
+    print("The article is classified as REAL.")
+

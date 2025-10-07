@@ -6,18 +6,22 @@ import pickle
 model = pickle.load(open("model.pkl", "rb"))
 vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
 
-st.title("📰 Fake News Detector")
-st.write("Enter a news article text below to check if it's **Real or Fake**!")
+# App Title
+st.title("📰 Fake News Detector (AI + ML)")
+st.write("Check if a news article is **Real or Fake** using a trained ML model.")
 
-user_input = st.text_area("Enter News Text")
+# Input
+user_input = st.text_area("Enter News Article Text Here")
 
-if st.button("Check"):
+# Prediction
+if st.button("Check News"):
     if user_input.strip():
         input_vec = vectorizer.transform([user_input])
         prediction = model.predict(input_vec)[0]
         if prediction == 1:
-            st.success("This news seems to be **Real**.")
+            st.success("✅ The news appears to be **REAL**.")
         else:
-            st.error(" This news seems to be **Fake**.")
+            st.error("🚨 The news appears to be **FAKE**.")
     else:
-        st.warning("Please enter some text.")
+        st.warning("Please enter some text to analyze.")
+

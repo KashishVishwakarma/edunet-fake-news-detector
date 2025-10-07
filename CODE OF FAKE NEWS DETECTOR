@@ -96,3 +96,6 @@ def manual_testing(news):
                                                                                                              output_lable(pred_GB[0]),
                                                                                                              output_lable(pred_RF[0])))
     
+#FOR MANUAL ENTRY
+news = str(input()) 
+manual_testing(news)

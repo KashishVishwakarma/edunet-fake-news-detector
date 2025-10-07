@@ -1,58 +1,61 @@
+# model.py
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+import pickle
 
-# Load the dataset
-df = pd.read_csv('news.csv')
+# ==============================
+# 1. Load Dataset
+# ==============================
+true_news = pd.read_csv("data/True.csv")
+fake_news = pd.read_csv("data/Fake.csv")
 
-# Drop any rows with missing values
-df = df.dropna()
+true_news["label"] = 1  # Real = 1
+fake_news["label"] = 0  # Fake = 0
 
-# Map the labels to numerical values (0 for FAKE, 1 for REAL)
-df['label'] = df['label'].apply(lambda x: 0 if x == 'FAKE' else 1)
+data = pd.concat([true_news, fake_news], axis=0)
+data = data.sample(frac=1, random_state=42).reset_index(drop=True)
 
-# Combine the title and text for a more robust analysis
-df['combined_text'] = df['title'] + " " + df['text']
+print(f"Total samples: {len(data)}")
 
-# Split the data into training and testing sets
-X = df['combined_text']
-y = df['label']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# ==============================
+# 2. Preprocessing
+# ==============================
+X = data["text"]
+y = data["label"]
 
-# Create a TF-IDF Vectorizer
-tfidf_vectorizer = TfidfVectorizer(stop_words='english', max_df=0.7)
+# TF-IDF Vectorizer
+vectorizer = TfidfVectorizer(stop_words="english", max_df=0.7)
+X_vec = vectorizer.fit_transform(X)
 
-# Fit and transform the training data
-tfidf_train = tfidf_vectorizer.fit_transform(X_train)
+# Split into training and testing
+X_train, X_test, y_train, y_test = train_test_split(
+    X_vec, y, test_size=0.2, random_state=42
+)
 
-# Transform the testing data
-tfidf_test = tfidf_vectorizer.transform(X_test)
+# ==============================
+# 3. Train the Model
+# ==============================
+model = LogisticRegression()
+model.fit(X_train, y_train)
 
-# Initialize a Logistic Regression classifier
-classifier = LogisticRegression()
+# ==============================
+# 4. Evaluate Model
+# ==============================
+y_pred = model.predict(X_test)
+print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
 
-# Train the classifier
-classifier.fit(tfidf_train, y_train)
+# ==============================
+# 5. Save Model and Vectorizer
+# ==============================
+with open("model.pkl", "wb") as f:
+    pickle.dump(model, f)
 
-# Make predictions on the test set
-y_pred = classifier.predict(tfidf_test)
+with open("vectorizer.pkl", "wb") as f:
+    pickle.dump(vectorizer, f)
 
-# Evaluate the model
-accuracy = accuracy_score(y_test, y_pred)
-conf_matrix = confusion_matrix(y_test, y_pred)
-
-print(f"Model Accuracy: {accuracy*100:.2f}%")
-print("Confusion Matrix:\n", conf_matrix)
-
-# Example of predicting a new article
-new_article = "Fake news headline: Scientists discover that all humans are now invisible."
-new_article_tfidf = tfidf_vectorizer.transform([new_article])
-prediction = classifier.predict(new_article_tfidf)
-
-if prediction[0] == 0:
-    print("The article is classified as FAKE.")
-else:
-    print("The article is classified as REAL.")
+print("✅ Model and vectorizer saved successfully!")
 
